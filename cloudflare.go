@@ -6,19 +6,15 @@ import (
 )
 
 type Cloudflare struct {
-	APIKey string
-	Email string
-	SLog *slog.Instance
-	Api *cfgo.API
+	Email  string `yaml:"email"`
+	APIKey string `yaml:"api_key"`
+	SLog     *slog.Instance
+	Api      *cfgo.API
 	UserInfo cfgo.User
-	cfg Config
 }
 
-func (cf *Cloudflare) Initialize(cfg Config) (*Cloudflare) {
+func (cf *Cloudflare) Initialize() (*Cloudflare) {
 	cf.SLog = slog.Scope("Cloudflare-API")
-
-	cf.APIKey = cfg.Cloudflare.Apikey
-	cf.Email = cfg.Cloudflare.Email
 
 	api, err := cfgo.New(cf.APIKey, cf.Email)
 	cf.Api = api
@@ -40,15 +36,15 @@ func (cf *Cloudflare) Initialize(cfg Config) (*Cloudflare) {
 	return cf
 }
 
-func (cf *Cloudflare) ExistsZone(zoneId string, zoneName string) (bool) {
-	zone, err := cf.Api.ZoneDetails(zoneId)
+func (cf *Cloudflare) ExistsZone(zone *Zone) (bool) {
+	zoneResponse, err := cf.Api.ZoneDetails(zone.Id)
 
 	if err != nil {
 		cf.SLog.Error(err)
 		return false
 	}
 
-	if zone.Name != zoneName {
+	if zoneResponse.Name != zone.Hostname {
 		cf.SLog.Error(`Zone has a different hostname, mark skip`)
 		return false
 	}
@@ -56,22 +52,41 @@ func (cf *Cloudflare) ExistsZone(zoneId string, zoneName string) (bool) {
 	return true
 }
 
-func (cf *Cloudflare) LoadDnsRecords(zoneId string) ([]cfgo.DNSRecord) {
-	records, err := cf.Api.DNSRecords(zoneId, cfgo.DNSRecord{})
+func (cf *Cloudflare) LoadDnsRecords(zone *Zone) {
+	cf.SLog.Info(`Loading DNS Records for %s zone`, zone.Hostname)
+	records, err := cf.Api.DNSRecords(zone.Id, cfgo.DNSRecord{})
 
 	if err != nil {
 		cf.SLog.Fatal(err)
 	}
 
-	return records
+	zone.DNSRecords = records
 }
 
-func (cf *Cloudflare) ExistsDnsRule(dnsRecords []cfgo.DNSRecord, dnsName string) (cfgo.DNSRecord, bool) {
-	for _, value := range dnsRecords {
-		if value.Name == dnsName {
-			return value, true
+func (cf *Cloudflare) ExistsDnsRule(zone *Zone, dns *Dns) (bool) {
+	for _, value := range zone.DNSRecords  {
+		if value.Name == dns.Name {
+			return true
 		}
 	}
 
-	return cfgo.DNSRecord{}, false
+	return false
+}
+
+func (cf *Cloudflare) CreateDnsRule(zone *Zone, dns *Dns) (error) {
+	dnsCF := cfgo.DNSRecord{
+		ID: dns.ID,
+		Type: dns.Dtype,
+		Name: dns.Name,
+		Content: dns.Content,
+		Proxied: dns.Proxied,
+	}
+
+	dres, err := cf.Api.CreateDNSRecord(zone.Id, dnsCF)
+
+	if err == nil {
+		dns.ID = dres.Result.ID
+	}
+
+	return err
 }

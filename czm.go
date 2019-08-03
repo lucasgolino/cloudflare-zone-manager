@@ -3,47 +3,58 @@ package czm
 import "github.com/quan-to/slog"
 
 type CloudflareZoneManager struct {
-	Config   Config
-	Services struct {
+	ConfigMap ConfigMap
+	Env string
+	SLog *slog.Instance
+	Srv struct {
 		CF *Cloudflare
 		Reporter string
 	}
-	SLog *slog.Instance
 }
 
 func (e *CloudflareZoneManager) Init() {
 	e.SLog = slog.Scope(`CZM`)
 
-	e.Config = ReadConfig()
+	e.ConfigMap = ReadConfigMap()
 	e.InitServices()
 
 	e.VerifyAndUpdateZones()
 }
 
 func (e *CloudflareZoneManager) InitServices() {
-	cf := Cloudflare{}
-	e.Services.CF = cf.Initialize(e.Config)
+	e.Srv.CF = e.ConfigMap.Cloudflare.Initialize()
 }
 
 func (e *CloudflareZoneManager) VerifyAndUpdateZones() {
-	var zones = e.Config.Zones
+	var zones = &e.ConfigMap.Zones
 
-	for _, zone := range zones {
-		if !e.Services.CF.ExistsZone(zone.Id, zone.Hostname) {
+	for _, zone := range *zones {
+		if !e.Srv.CF.ExistsZone(&zone) {
 			continue
 		}
 
-		dnsRecords := e.Services.CF.LoadDnsRecords(zone.Id)
+		e.Srv.CF.LoadDnsRecords(&zone)
 
 		for _, dns := range zone.Dns {
-			dnsData, exists := e.Services.CF.ExistsDnsRule(dnsRecords, dns.Name)
-
-			if !exists {
-				e.SLog.Warn(`DNS Zone: %s dosen't exists... skip`, dns.Name)
-				continue
+			exists := e.Srv.CF.ExistsDnsRule(&zone, &dns)
+			rules := Rules{
+				dns.Rules.NotExist,
+				dns.Rules.Update,
 			}
 
-			e.SLog.Info(dnsData)
+			if !exists {
+				if rules.VerifyRule(RULES_NEXISTS_TAG) {
+					e.SLog.Warn(`DNS Zone: %s dosen't exists... skip`, dns.Name)
+					continue
+				}
+
+				err := e.Srv.CF.CreateDnsRule(&zone, &dns)
+
+				if err != nil {
+					e.SLog.Error(err)
+					continue
+				}
+			}
 		}
 	}
 }

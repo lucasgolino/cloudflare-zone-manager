@@ -1,37 +1,46 @@
 package czm
 
 import (
+	cfgo "github.com/cloudflare/cloudflare-go"
 	SLog "github.com/quan-to/slog"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 )
 
-type Config struct {
-	Cloudflare struct {
-		Email  string `yaml:"email"`
-		Apikey string `yaml:"api_key"`
-	} `yaml:"cloudflare"`
-	Zones []struct {
-		Id       string `yaml:"id"`
-		Hostname string `yaml:"hostname"`
-		Dns      []struct {
-			Name    string `yaml:"name"`
-			Dtype   string `yaml:"dtype"`
-			Content string `yaml:"content"`
-			Proxied bool   `yaml:"proxied"`
-			Module  struct {
-				Name     string `yaml:"name"`
-				Metadata []struct {
-					Key  string `yaml:"key"`
-					Data string `yaml:"Data"`
-				} `yaml:"metadata"`
-			} `yaml:"module"`
-		} `yaml:"dns"`
-	} `yaml:"zones"`
+type DNSMetadata struct {
+	Key  string `yaml:"key"`
+	Data string `yaml:"data"`
 }
 
-func ReadConfig() (Config) {
-	var config Config
+type Module struct {
+	Name     string `yaml:"name"`
+	Metadata []DNSMetadata `yaml:"metadata"`
+}
+
+type Dns struct {
+	ID	string
+	Name string `yaml:"name"`
+	Dtype string `yaml:"dtype"`
+	Content string `yaml:"content"`
+	Proxied bool   `yaml:"proxied"`
+	Rules Rules `yaml:"rules"`
+	Module Module `yaml:"module"`
+}
+
+type Zone struct {
+	Id       string `yaml:"id"`
+	Hostname string `yaml:"hostname"`
+	Dns []Dns `yaml:"dns"`
+	DNSRecords []cfgo.DNSRecord
+}
+
+type ConfigMap struct {
+	Cloudflare Cloudflare `yaml:"cloudflare"`
+	Zones []Zone `yaml:"zones"`
+}
+
+func ReadConfigMap() (ConfigMap) {
+	var config ConfigMap
 
 	yamlFile, err := ioutil.ReadFile("../dns.yaml")
 

@@ -1,0 +1,12 @@
+package czm
+
+const (
+	RULES_NEXISTS_TAG = "NOTEXIST"
+	RULES_NEXISTS_CREATE	= "create"
+	RULES_NEXISTS_SKIP	= "skip"
+
+	RULES_UPDATE_TAG = "UPDATE"
+	RULES_UPDATE_ALWAYS	= "always"
+	RULES_UPDATE_IFDIFF	= "if-different"
+	RULES_UPDATE_NEVER	= "never"
+)
