@@ -12,10 +12,6 @@ type DNSMetadata struct {
 	Data string `yaml:"data"`
 }
 
-type Module struct {
-	Name     string `yaml:"name"`
-	Metadata []DNSMetadata `yaml:"metadata"`
-}
 
 type Dns struct {
 	ID	string
@@ -32,6 +28,7 @@ type Zone struct {
 	Hostname string `yaml:"hostname"`
 	Dns []Dns `yaml:"dns"`
 	DNSRecords []cfgo.DNSRecord
+
 }
 
 type ConfigMap struct {
@@ -39,20 +36,16 @@ type ConfigMap struct {
 	Zones []Zone `yaml:"zones"`
 }
 
-func ReadConfigMap() (ConfigMap) {
-	var config ConfigMap
-
-	yamlFile, err := ioutil.ReadFile("../dns.yaml")
+func (cMap *ConfigMap) ReadConfigMap() {
+	yamlFile, err := ioutil.ReadFile(CONFIG_MAP_PATH)
 
 	if err != nil {
 		SLog.Scope("ReadZones").Error(err)
 	}
 
-	err = yaml.Unmarshal(yamlFile, &config)
+	err = yaml.Unmarshal(yamlFile, &cMap)
 
 	if err != nil {
 		SLog.Scope("ReadZones").Error(err)
 	}
-
-	return config
 }

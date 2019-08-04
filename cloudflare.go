@@ -74,15 +74,17 @@ func (cf *Cloudflare) ExistsDnsRule(zone *Zone, dns *Dns) (bool) {
 }
 
 func (cf *Cloudflare) CreateDnsRule(zone *Zone, dns *Dns) (error) {
-	dnsCF := cfgo.DNSRecord{
+	if dns.Content == "" {
+		dns.Content = dns.Module.Resolve()
+	}
+
+	dres, err := cf.Api.CreateDNSRecord(zone.Id, cfgo.DNSRecord{
 		ID: dns.ID,
 		Type: dns.Dtype,
 		Name: dns.Name,
 		Content: dns.Content,
 		Proxied: dns.Proxied,
-	}
-
-	dres, err := cf.Api.CreateDNSRecord(zone.Id, dnsCF)
+	})
 
 	if err == nil {
 		dns.ID = dres.Result.ID

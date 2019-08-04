@@ -1,3 +1,4 @@
 *.yaml
+*.so
 .idea
 vendor
