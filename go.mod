@@ -1,4 +1,4 @@
-module golinux.network/tools/cloudflare-zone-manager
+module github.com/lucasgolino/cloudflare-zone-manager
 
 go 1.12
 
