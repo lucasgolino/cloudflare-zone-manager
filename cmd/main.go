@@ -1,6 +1,6 @@
 package main
 
-import czm "golinux.network/tools/cloudflare-zone-manager"
+import czm "github.com/lucasgolino/cloudflare-zone-manager"
 
 func main() {
 	var CloudflareZM = czm.CloudflareZoneManager{}
