@@ -52,7 +52,7 @@ func (cf *Cloudflare) ExistsZone(zone *Zone) (bool) {
 	return true
 }
 
-func (cf *Cloudflare) LoadDnsRecords(zone *Zone) {
+func (cf *Cloudflare) LoadDNSRecords(zone *Zone) {
 	cf.SLog.Info(`Loading DNS Records for %s zone`, zone.Hostname)
 	records, err := cf.Api.DNSRecords(zone.Id, cfgo.DNSRecord{})
 
@@ -63,9 +63,10 @@ func (cf *Cloudflare) LoadDnsRecords(zone *Zone) {
 	zone.DNSRecords = records
 }
 
-func (cf *Cloudflare) ExistsDnsRule(zone *Zone, dns *Dns) (bool) {
+func (cf *Cloudflare) ExistsDNSRecord(zone *Zone, dns *Dns) (bool) {
 	for _, value := range zone.DNSRecords  {
 		if value.Name == dns.Name {
+			dns.ID = value.ID
 			return true
 		}
 	}
@@ -73,8 +74,9 @@ func (cf *Cloudflare) ExistsDnsRule(zone *Zone, dns *Dns) (bool) {
 	return false
 }
 
-func (cf *Cloudflare) CreateDnsRule(zone *Zone, dns *Dns) (error) {
+func (cf *Cloudflare) CreateDNSRecord(zone *Zone, dns *Dns) (error) {
 	if dns.Content == "" {
+		cf.SLog.SubScope(dns.Name).Info("Resolving module")
 		dns.Content = dns.Module.Resolve()
 	}
 
@@ -89,6 +91,61 @@ func (cf *Cloudflare) CreateDnsRule(zone *Zone, dns *Dns) (error) {
 	if err == nil {
 		dns.ID = dres.Result.ID
 	}
+
+	cf.SLog.SubScope(dns.Name).Info("Zone created")
+
+	return err
+}
+
+func (cf *Cloudflare) DNSRecordHasDiff(zone *Zone, dns *Dns) (bool) {
+	dnsData, err := cf.Api.DNSRecord(zone.Id, dns.ID)
+
+	if err != nil {
+		cf.SLog.Error(err)
+		return false
+	}
+
+	if dnsData.Name != dns.Name {
+		cf.SLog.SubScope(dns.Name).Info("Has different name")
+		return true
+	}
+
+	if dnsData.Proxiable {
+		if dns.Proxied != dnsData.Proxied {
+			cf.SLog.SubScope(dns.Name).Info("Has mark with different Proxied")
+			return true
+		}
+	}
+
+	if dnsData.Content != dns.Content {
+		cf.SLog.SubScope(dns.Name).Info("Has mark with different Content")
+		return true
+	}
+
+	if dnsData.Type != dns.Dtype {
+		cf.SLog.SubScope(dns.Name).Info("Has mark with different Type")
+		return true
+	}
+
+	if dnsData.TTL != dns.TTL {
+		cf.SLog.SubScope(dns.Name).Info("Has mark with different TTL")
+		return true
+	}
+
+	return false
+}
+
+func (cf *Cloudflare) UpdateDNSRecord(zone *Zone, dns *Dns) (error) {
+
+	cf.SLog.SubScope(dns.Name).Info(`Updating DNSRecord`)
+
+	err := cf.Api.UpdateDNSRecord(zone.Id, dns.ID, cfgo.DNSRecord{
+		Name: dns.Name,
+		Type: dns.Dtype,
+		Content: dns.Content,
+		TTL: dns.TTL,
+		Proxied: dns.Proxied,
+	})
 
 	return err
 }

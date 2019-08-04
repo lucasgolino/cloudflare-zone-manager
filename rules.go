@@ -16,7 +16,12 @@ func (r *Rules) VerifyRule(tag string) (bool) {
 
 		return false
 
-	case RULES_UPDATE_ALWAYS:
+	case RULES_UPDATE_TAG:
+		if r.Update == RULES_UPDATE_ALWAYS  {
+			return false
+		} else if r.Update == RULES_UPDATE_NEVER {
+			return true
+		}
 		return false
 
 	default:

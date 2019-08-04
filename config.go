@@ -20,6 +20,7 @@ type Dns struct {
 	Content string `yaml:"content"`
 	Proxied bool   `yaml:"proxied"`
 	Rules Rules `yaml:"rules"`
+	TTL int `yaml:"ttl"`
 	Module Module `yaml:"module"`
 }
 

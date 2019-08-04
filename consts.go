@@ -9,7 +9,6 @@ const (
 
 	RULES_UPDATE_TAG = "UPDATE"
 	RULES_UPDATE_ALWAYS	= "always"
-	RULES_UPDATE_IFDIFF	= "if-different"
 	RULES_UPDATE_NEVER	= "never"
 )
 
