@@ -1,5 +1,13 @@
 # Cloudflare Zone Manager
 
+
+### Enviroment Variables
+
+```bash
+export CONFIG_MAP_PATH=path/to/condig/map.yaml
+export CONFIG_MOD_PATH=../modules # Default path to built-in modules
+```
+
 ### Config map
  This is a config example for CZM to identify your zones and configurations
 
