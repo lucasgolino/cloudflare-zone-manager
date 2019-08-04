@@ -69,7 +69,7 @@ var Plugin modulename
 ```
 
 How to build:
-go build -buildmode=plugin -o modulename.so -o modulename.go
+`go build -buildmode=plugin -o modulename.so -o modulename.go`
 
 
 ### Contributing
