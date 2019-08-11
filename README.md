@@ -1,5 +1,8 @@
 # Cloudflare Zone Manager
 
+### Run on Docker
+
+docker pull golinux/cloudflare-zone-manager
 
 ### Enviroment Variables
 
@@ -32,7 +35,7 @@ zones:
                         -   key: "route"
                             data: "eno1"
             -   name: "something.golinux.network"
-                dtype: "A"
+                dtype: "A" 
                 content: "10.0.0.1"
                 proxied: false
                 ttl: 120

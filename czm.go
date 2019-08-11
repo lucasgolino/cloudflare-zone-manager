@@ -69,7 +69,7 @@ func (e *CloudflareZoneManager) VerifyAndUpdateZones() {
 			}
 
 			// Resolve content of DNS with Modules
-			if (dns.Content == "") {
+			if dns.Content == "" {
 				dns.Content = dns.Module.Resolve()
 			}
 

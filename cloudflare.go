@@ -2,6 +2,7 @@ package czm
 
 import (
 	cfgo "github.com/cloudflare/cloudflare-go"
+	"github.com/logrusorgru/aurora"
 	"github.com/quan-to/slog"
 )
 
@@ -118,7 +119,9 @@ func (cf *Cloudflare) DNSRecordHasDiff(zone *Zone, dns *Dns) (bool) {
 	}
 
 	if dnsData.Content != dns.Content {
-		cf.SLog.SubScope(dns.Name).Info("Has mark with different Content")
+		var log = cf.SLog.SubScope(dns.Name)
+		log.Info("Has mark with different Content")
+		log.Log(` diff(%s, %s%s)`, aurora.Red(dnsData.Content), aurora.Green(dns.Content), aurora.Cyan(""))
 		return true
 	}
 
