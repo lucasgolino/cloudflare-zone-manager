@@ -1,13 +1,15 @@
 # Cloudflare Zone Manager
 
+This is a Docker image that uses Cloudflare Zone Management to effectively works as a DDNS on top of Cloudflare. 
+
 ### Run on Docker
 
-docker pull golinux/cloudflare-zone-manager
+`docker pull golinux/cloudflare-zone-manager`
 
 ### Enviroment Variables
 
 ```bash
-export CONFIG_MAP_PATH=path/to/condig/map.yaml
+export CONFIG_MAP_PATH=path/to/config/map.yaml
 export CONFIG_MOD_PATH=../modules # Default path to built-in modules
 ```
 
@@ -16,13 +18,13 @@ export CONFIG_MOD_PATH=../modules # Default path to built-in modules
 
 ```yaml
 cloudflare:
-    email: "your@email.com"
+    email: "your@example.com"
     api_key: "YourCloudflareAPIKey"
 zones:
     -   id: "0000000000000000000"
-        hostname: "golinux.network"
+        hostname: "example.com"
         dns:
-            -   name: "subdomain.golinux.network"
+            -   name: "subdomain.example.com"
                 dtype: "A"
                 proxied: false
                 ttl: 120
@@ -34,7 +36,7 @@ zones:
                     metadata:
                         -   key: "route"
                             data: "eno1"
-            -   name: "something.golinux.network"
+            -   name: "anothersubdomain.example.comk"
                 dtype: "A" 
                 content: "10.0.0.1"
                 proxied: false
@@ -43,6 +45,7 @@ zones:
                     not-exist: "create"
                     update: "always"
 ```
+
 
 #### Rules
 
