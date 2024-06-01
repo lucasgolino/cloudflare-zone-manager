@@ -1,10 +1,11 @@
 package czm
 
 import (
-	cfgo "github.com/cloudflare/cloudflare-go"
+	"fmt"
+	"github.com/cloudflare/cloudflare-go"
 	SLog "github.com/quan-to/slog"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
+	"os"
 )
 
 type DNSMetadata struct {
@@ -12,41 +13,40 @@ type DNSMetadata struct {
 	Data string `yaml:"data"`
 }
 
-
 type Dns struct {
-	ID	string
-	Name string `yaml:"name"`
-	Dtype string `yaml:"dtype"`
+	ID      string
+	Name    string `yaml:"name"`
+	Dtype   string `yaml:"dtype"`
 	Content string `yaml:"content"`
-	Proxied bool   `yaml:"proxied"`
-	Rules Rules `yaml:"rules"`
-	TTL int `yaml:"ttl"`
-	Module Module `yaml:"module"`
+	Proxied *bool  `yaml:"proxied"`
+	Rules   Rules  `yaml:"rules"`
+	TTL     int    `yaml:"ttl"`
+	Module  Module `yaml:"module"`
 }
 
 type Zone struct {
-	Id       string `yaml:"id"`
-	Hostname string `yaml:"hostname"`
-	Dns []Dns `yaml:"dns"`
-	DNSRecords []cfgo.DNSRecord
-
+	Id         string `yaml:"id"`
+	Hostname   string `yaml:"hostname"`
+	Dns        []Dns  `yaml:"dns"`
+	DNSRecords []cloudflare.DNSRecord
 }
 
 type ConfigMap struct {
 	Cloudflare Cloudflare `yaml:"cloudflare"`
-	Zones []Zone `yaml:"zones"`
+	Zones      []Zone     `yaml:"zones"`
 }
 
 func (cMap *ConfigMap) ReadConfigMap() {
-	yamlFile, err := ioutil.ReadFile(CONFIG_MAP_PATH)
+	log := SLog.Scope(fmt.Sprintf("LoadConfig: %s", CONFIG_MAP_PATH))
+	yamlFile, err := os.ReadFile(CONFIG_MAP_PATH)
 
 	if err != nil {
-		SLog.Scope("ReadZones").Error(err)
+		log.Fatal(err)
 	}
 
 	err = yaml.Unmarshal(yamlFile, &cMap)
 
 	if err != nil {
-		SLog.Scope("ReadZones").Error(err)
+		log.Fatal(err)
 	}
 }

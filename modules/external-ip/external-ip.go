@@ -3,14 +3,13 @@ package main
 import (
 	"github.com/logrusorgru/aurora"
 	"github.com/quan-to/slog"
-	"io/ioutil"
+	"io"
 	"net/http"
 )
 
 type externalip string
 
-
-func (e externalip) Resolve(args interface{}) (string) {
+func (e externalip) Resolve(args interface{}) string {
 	client := &http.Client{}
 	slog := slog.Scope("m:External-IP")
 	req, err := http.NewRequest("GET", "https://ifconfig.me/ip", nil)
@@ -25,7 +24,7 @@ func (e externalip) Resolve(args interface{}) (string) {
 	res, _ := client.Do(req)
 	defer res.Body.Close()
 
-	bodyBytes, err := ioutil.ReadAll(res.Body)
+	bodyBytes, err := io.ReadAll(res.Body)
 	resp := string(bodyBytes)
 	slog.Log(`	fetch (%s%s)`, aurora.Red(resp), aurora.Cyan(""))
 

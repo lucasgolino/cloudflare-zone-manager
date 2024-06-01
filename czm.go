@@ -7,11 +7,11 @@ import (
 
 type CloudflareZoneManager struct {
 	ConfigMap ConfigMap
-	SLog *slog.Instance
-	Srv struct {
-		CF *Cloudflare
+	SLog      *slog.Instance
+	Srv       struct {
+		CF       *Cloudflare
 		Reporter string
-		Mods Modules
+		Mods     Modules
 	}
 }
 
@@ -21,7 +21,7 @@ func (e *CloudflareZoneManager) Init() {
 	e.ConfigMap.ReadConfigMap()
 	e.InitServices()
 
-	for true {
+	for {
 		e.VerifyAndUpdateZones()
 		time.Sleep(time.Second * 60)
 	}
@@ -89,5 +89,3 @@ func (e *CloudflareZoneManager) VerifyAndUpdateZones() {
 		}
 	}
 }
-
-

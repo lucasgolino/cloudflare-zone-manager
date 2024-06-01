@@ -1,44 +1,47 @@
 package czm
 
 import (
-	cfgo "github.com/cloudflare/cloudflare-go"
+	"context"
+	"github.com/cloudflare/cloudflare-go"
 	"github.com/logrusorgru/aurora"
 	"github.com/quan-to/slog"
 )
 
 type Cloudflare struct {
-	Email  string `yaml:"email"`
-	APIKey string `yaml:"api_key"`
+	Email    string `yaml:"email"`
+	APIKey   string `yaml:"api_key"`
 	SLog     *slog.Instance
-	Api      *cfgo.API
-	UserInfo cfgo.User
+	Api      *cloudflare.API
+	UserInfo cloudflare.User
+	ctx      context.Context
 }
 
-func (cf *Cloudflare) Initialize() (*Cloudflare) {
+func (cf *Cloudflare) Initialize() *Cloudflare {
+	cf.ctx = context.Background()
 	cf.SLog = slog.Scope("Cloudflare-API")
 
-	api, err := cfgo.New(cf.APIKey, cf.Email)
+	api, err := cloudflare.New(cf.APIKey, cf.Email)
 	cf.Api = api
 
 	if err != nil {
 		cf.SLog.Fatal(err)
-	} else {
-		cf.SLog.Info(`Cloudflare connection is setting!`)
 	}
 
-	cf.SLog.Info(`Fetching User informations`)
-	cf.UserInfo, err = cf.Api.UserDetails()
+	cf.SLog.Info(`Cloudflare connection successful created`)
+	cf.SLog.Info(`Fetching user information`)
+
+	cf.UserInfo, err = cf.Api.UserDetails(cf.ctx)
 
 	if err != nil {
-		cf.SLog.Error(`Fail to fetch user informations`)
+		cf.SLog.Error(`Fail to fetch user information`)
 		cf.SLog.Fatal(err)
 	}
 
 	return cf
 }
 
-func (cf *Cloudflare) ExistsZone(zone *Zone) (bool) {
-	zoneResponse, err := cf.Api.ZoneDetails(zone.Id)
+func (cf *Cloudflare) ExistsZone(zone *Zone) bool {
+	zoneResponse, err := cf.Api.ZoneDetails(cf.ctx, zone.Id)
 
 	if err != nil {
 		cf.SLog.Error(err)
@@ -55,7 +58,8 @@ func (cf *Cloudflare) ExistsZone(zone *Zone) (bool) {
 
 func (cf *Cloudflare) LoadDNSRecords(zone *Zone) {
 	cf.SLog.Info(`Loading DNS Records for %s zone`, zone.Hostname)
-	records, err := cf.Api.DNSRecords(zone.Id, cfgo.DNSRecord{})
+	zoneId := cloudflare.ZoneIdentifier(zone.Id)
+	records, _, err := cf.Api.ListDNSRecords(cf.ctx, zoneId, cloudflare.ListDNSRecordsParams{})
 
 	if err != nil {
 		cf.SLog.Fatal(err)
@@ -64,8 +68,8 @@ func (cf *Cloudflare) LoadDNSRecords(zone *Zone) {
 	zone.DNSRecords = records
 }
 
-func (cf *Cloudflare) ExistsDNSRecord(zone *Zone, dns *Dns) (bool) {
-	for _, value := range zone.DNSRecords  {
+func (cf *Cloudflare) ExistsDNSRecord(zone *Zone, dns *Dns) bool {
+	for _, value := range zone.DNSRecords {
 		if value.Name == dns.Name {
 			dns.ID = value.ID
 			return true
@@ -75,22 +79,23 @@ func (cf *Cloudflare) ExistsDNSRecord(zone *Zone, dns *Dns) (bool) {
 	return false
 }
 
-func (cf *Cloudflare) CreateDNSRecord(zone *Zone, dns *Dns) (error) {
+func (cf *Cloudflare) CreateDNSRecord(zone *Zone, dns *Dns) error {
 	if dns.Content == "" {
 		cf.SLog.SubScope(dns.Name).Info("Resolving module")
 		dns.Content = dns.Module.Resolve()
 	}
 
-	dres, err := cf.Api.CreateDNSRecord(zone.Id, cfgo.DNSRecord{
-		ID: dns.ID,
-		Type: dns.Dtype,
-		Name: dns.Name,
+	zoneId := cloudflare.ZoneIdentifier(zone.Id)
+	response, err := cf.Api.CreateDNSRecord(cf.ctx, zoneId, cloudflare.CreateDNSRecordParams{
+		ID:      dns.ID,
+		Type:    dns.Dtype,
+		Name:    dns.Name,
 		Content: dns.Content,
 		Proxied: dns.Proxied,
 	})
 
 	if err == nil {
-		dns.ID = dres.Result.ID
+		dns.ID = response.ID
 	}
 
 	cf.SLog.SubScope(dns.Name).Info("Zone created")
@@ -98,55 +103,59 @@ func (cf *Cloudflare) CreateDNSRecord(zone *Zone, dns *Dns) (error) {
 	return err
 }
 
-func (cf *Cloudflare) DNSRecordHasDiff(zone *Zone, dns *Dns) (bool) {
-	dnsData, err := cf.Api.DNSRecord(zone.Id, dns.ID)
+func (cf *Cloudflare) DNSRecordHasDiff(zone *Zone, dns *Dns) bool {
+	log := cf.SLog.SubScope(dns.Name)
+	zoneId := cloudflare.ZoneIdentifier(zone.Id)
+	response, err := cf.Api.GetDNSRecord(cf.ctx, zoneId, dns.ID)
+
+	hasDiff := false
 
 	if err != nil {
-		cf.SLog.Error(err)
+		log.Error(err)
 		return false
 	}
 
-	if dnsData.Name != dns.Name {
-		cf.SLog.SubScope(dns.Name).Info("Has different name")
-		return true
+	if response.Name != dns.Name {
+		log.Info("DNS Zone has different name")
+		hasDiff = true
 	}
 
-	if dnsData.Proxiable {
-		if dns.Proxied != dnsData.Proxied {
-			cf.SLog.SubScope(dns.Name).Info("Has mark with different Proxied")
-			return true
+	if response.Proxiable {
+		if response.Proxied != dns.Proxied {
+			log.Info("")
+			hasDiff = true
 		}
 	}
 
-	if dnsData.Content != dns.Content {
-		var log = cf.SLog.SubScope(dns.Name)
-		log.Info("Has mark with different Content")
-		log.Log(` diff(%s, %s%s)`, aurora.Red(dnsData.Content), aurora.Green(dns.Content), aurora.Cyan(""))
-		return true
+	if response.Content != dns.Content {
+		log.Info("DNS Zone has different payload")
+		log.Log(` diff(%s, %s)%s`, aurora.Red(response.Content), aurora.Green(dns.Content), aurora.Cyan(""))
+		hasDiff = true
 	}
 
-	if dnsData.Type != dns.Dtype {
-		cf.SLog.SubScope(dns.Name).Info("Has mark with different Type")
-		return true
+	if response.Type != dns.Dtype {
+		log.Info("DNS Zone has different type")
+		hasDiff = true
 	}
 
-	if dnsData.TTL != dns.TTL {
-		cf.SLog.SubScope(dns.Name).Info("Has mark with different TTL")
-		return true
+	if response.TTL != dns.TTL {
+		log.Info("DNS Zone has different TTL")
+		hasDiff = true
 	}
 
-	return false
+	return hasDiff
 }
 
-func (cf *Cloudflare) UpdateDNSRecord(zone *Zone, dns *Dns) (error) {
+func (cf *Cloudflare) UpdateDNSRecord(zone *Zone, dns *Dns) error {
 
-	cf.SLog.SubScope(dns.Name).Info(`Updating DNSRecord`)
-
-	err := cf.Api.UpdateDNSRecord(zone.Id, dns.ID, cfgo.DNSRecord{
-		Name: dns.Name,
-		Type: dns.Dtype,
+	cf.SLog.SubScope(dns.Name).Info(`Updating Record`)
+	zoneId := cloudflare.ZoneIdentifier(zone.Id)
+	_, err := cf.Api.UpdateDNSRecord(cf.ctx, zoneId, cloudflare.UpdateDNSRecordParams{
+		ID:      dns.ID,
+		Name:    dns.Name,
+		Type:    dns.Dtype,
 		Content: dns.Content,
-		TTL: dns.TTL,
+		TTL:     dns.TTL,
 		Proxied: dns.Proxied,
 	})
 
